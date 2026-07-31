@@ -1,0 +1,9 @@
+/
+├── admin.html
+├── scanner.html
+├── style.css
+├── js/
+│   ├── admin.js
+│   ├── scanner.js
+│   ├── qrcode.min.js  (librería para generar QR)
+│   └── html5-qrcode.min.js (librería para escanear QR)

@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Escáner de Vales de Gas LP</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Escáner de Vales QR</h1>
+        <div class="form-group">
+            <label for="currentStationId">Estación Actual del Escáner:</label>
+            <input type="text" id="currentStationId" placeholder="Ej: EstacionA">
+            <button id="setStationBtn">Establecer Estación</button>
+        </div>
+
+        <!-- qr-scanner necesita un elemento <video> directamente -->
+        <video id="reader" style="width: 100%; max-width: 500px; border: 1px solid #ddd; border-radius: 8px;"></video>
+        <div id="result" class="scan-result">
+            <p>Esperando escaneo...</p>
+        </div>
+        <a href="index.html" class="back-link">Volver al Inicio</a>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/qr-scanner@1.4.2/qr-scanner.umd.min.js"></script>
+    <script src="js/scanner.js"></script>
+</body>
+</html>
