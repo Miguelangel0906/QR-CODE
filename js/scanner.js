@@ -54,7 +54,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    function processScannedVoucher(qrContent) {
+    async function processScannedVoucher(qrContent) {
         let voucherData;
         try {
             voucherData = JSON.parse(qrContent);
@@ -70,16 +70,26 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        const vouchers = JSON.parse(localStorage.getItem('gasVouchers')) || [];
-        const voucherIndex = vouchers.findIndex(v => v.id === voucherData.id);
+        // Buscar el vale en Supabase
+        const { data: vouchers, error } = await supabase
+            .from('vouchers')
+            .select('*')
+            .eq('id', voucherData.id)
+            .limit(1);
 
-        if (voucherIndex === -1) {
+        if (error) {
+            resultDiv.innerHTML = `<p class="error">Error al consultar la base de datos.</p>`;
+            console.error('Error fetching voucher:', error);
+            return;
+        }
+
+        if (!vouchers || vouchers.length === 0) {
             resultDiv.innerHTML = `<p class="error">Vale con ID "${voucherData.id}" no encontrado. Asegúrate de que el vale haya sido generado en la sección de administración.</p>`;
             console.warn('Voucher not found:', voucherData.id);
             return;
         }
 
-        const storedVoucher = vouchers[voucherIndex];
+        const storedVoucher = vouchers[0];
 
         // Verificar Vigencia
         if (storedVoucher.validity) {
@@ -106,8 +116,17 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         // Marcar como canjeado
-        storedVoucher.redeemed = true;
-        localStorage.setItem('gasVouchers', JSON.stringify(vouchers));
+        const { error: updateError } = await supabase
+            .from('vouchers')
+            .update({ redeemed: true })
+            .eq('id', storedVoucher.id);
+
+        if (updateError) {
+            resultDiv.innerHTML = `<p class="error">Error al actualizar el vale en la base de datos.</p>`;
+            console.error('Error updating voucher:', updateError);
+            return;
+        }
+
         resultDiv.innerHTML = `<p class="success">¡Vale "${storedVoucher.id}" canjeado exitosamente en la estación "${currentStation}"!</p>`;
         console.log('Voucher redeemed successfully:', storedVoucher.id);
     }
