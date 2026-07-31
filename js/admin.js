@@ -13,26 +13,43 @@ document.addEventListener('DOMContentLoaded', () => {
     // Elementos de depuración
     const generatedVouchersList = document.getElementById('generatedVouchers');
 
-    // Función para cargar vales desde localStorage
-    async function loadVouchers() {
-        const { data: vouchers, error } = await supabase
-            .from('vouchers')
-            .select('*')
-            .order('created_at', { ascending: false });
+    const getSupabaseClient = () => {
+        return window.supabaseClient || null;
+    };
 
-        if (error) {
-            console.error('Error cargando vales desde Supabase:', error);
-            alert('Error al cargar los vales.');
-            return [];
-        }
-
+    const renderVoucherList = (vouchers = []) => {
+        if (!generatedVouchersList) return;
         generatedVouchersList.innerHTML = '';
         vouchers.forEach(voucher => {
             const li = document.createElement('li');
-            li.textContent = `ID: ${voucher.id}, Estación: ${voucher.station}, Vigencia: ${voucher.validity || 'N/A'}, Canjeado: ${voucher.redeemed ? 'Sí' : 'No'}`;
+            li.textContent = `ID: ${voucher.id}, Estación: ${voucher.station || 'N/A'}, Vigencia: ${voucher.validity || 'N/A'}, Canjeado: ${voucher.redeemed ? 'Sí' : 'No'}`;
             generatedVouchersList.appendChild(li);
         });
-        return vouchers;
+    };
+
+    async function loadVouchers() {
+        const client = getSupabaseClient();
+        if (!client) {
+            renderVoucherList([]);
+            return [];
+        }
+
+        try {
+            const { data: vouchers, error } = await client
+                .from('vouchers')
+                .select('*')
+                .order('created_at', { ascending: false });
+
+            if (error) throw error;
+
+            const list = Array.isArray(vouchers) ? vouchers : [];
+            renderVoucherList(list);
+            return list;
+        } catch (err) {
+            console.error('No se pudieron cargar los vales desde Supabase.', err);
+            renderVoucherList([]);
+            return [];
+        }
     }
 
     // Plantilla HTML para un vale individual, basada en vale.html
@@ -157,15 +174,20 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         }
 
-        // Guardar todos los nuevos vales en localStorage
-        if (newVouchers.length > 0) { // Guardar en Supabase
-            const { error } = await supabase.from('vouchers').insert(newVouchers);
-            if (error) {
-                console.error('Error guardando vales en Supabase:', error);
-                alert('Error al guardar los vales en la base de datos.');
+        if (newVouchers.length > 0) {
+            const client = getSupabaseClient();
+            if (client) {
+                try {
+                    const { error } = await client.from('vouchers').insert(newVouchers);
+                    if (error) throw error;
+                    alert(`${newVouchers.length} vales generados y guardados exitosamente.`);
+                    loadVouchers();
+                } catch (err) {
+                    console.error('No se pudieron guardar los vales en Supabase.', err);
+                    alert(`No se guardaron los vales: ${err.message || 'error de conexión con Supabase'}.`);
+                }
             } else {
-                alert(`${newVouchers.length} vales generados y guardados exitosamente.`);
-                loadVouchers(); // Recargar la lista para mostrar los nuevos vales
+                alert('No se guardaron los vales porque Supabase no está disponible.');
             }
         }
     });

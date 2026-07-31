@@ -54,6 +54,10 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    const getSupabaseClient = () => {
+        return window.supabaseClient || null;
+    };
+
     async function processScannedVoucher(qrContent) {
         let voucherData;
         try {
@@ -70,12 +74,17 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        // Buscar el vale en Supabase
-        const { data: vouchers, error } = await supabase
-            .from('vouchers')
-            .select('*')
-            .eq('id', voucherData.id)
-            .limit(1);
+        const client = getSupabaseClient();
+        if (!client) {
+            resultDiv.innerHTML = '<p class="warning">No hay conexión disponible con la base de datos. No se pudo verificar el vale.</p>';
+            return;
+        }
+
+        // Validar y canjear en una sola operación atómica en PostgreSQL.
+        const { data: redemption, error } = await client.rpc('redeem_voucher', {
+            voucher_id: voucherData.id,
+            scanner_station: currentStation
+        });
 
         if (error) {
             resultDiv.innerHTML = `<p class="error">Error al consultar la base de datos.</p>`;
@@ -83,52 +92,20 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        if (!vouchers || vouchers.length === 0) {
-            resultDiv.innerHTML = `<p class="error">Vale con ID "${voucherData.id}" no encontrado. Asegúrate de que el vale haya sido generado en la sección de administración.</p>`;
-            console.warn('Voucher not found:', voucherData.id);
+        const result = Array.isArray(redemption) ? redemption[0] : redemption;
+        if (!result || !result.success) {
+            const messages = {
+                not_found: 'El vale no existe.',
+                expired: 'El vale ha expirado.',
+                already_redeemed: 'El vale ya fue canjeado.',
+                wrong_station: 'El vale pertenece a otra estación.'
+            };
+            resultDiv.innerHTML = `<p class="error">${messages[result?.status] || 'No se pudo canjear el vale.'}</p>`;
             return;
         }
 
-        const storedVoucher = vouchers[0];
-
-        // Verificar Vigencia
-        if (storedVoucher.validity) {
-            const today = new Date();
-            const validityDate = new Date(storedVoucher.validity + 'T23:59:59'); // Considerar el día completo
-            today.setHours(0, 0, 0, 0); // Ignorar la hora para la comparación
-            if (today > validityDate) {
-                resultDiv.innerHTML = `<p class="error">Vale "${storedVoucher.id}" ha expirado. La fecha de vigencia era ${storedVoucher.validity}.</p>`;
-                console.warn('Voucher expired:', storedVoucher.id, 'Validity:', storedVoucher.validity);
-                return;
-            }
-        }
-
-        if (storedVoucher.redeemed) {
-            resultDiv.innerHTML = `<p class="warning">Vale "${storedVoucher.id}" ya ha sido canjeado.</p>`;
-            console.warn('Voucher already redeemed:', storedVoucher.id);
-            return;
-        }
-
-        if (storedVoucher.station !== currentStation) {
-            resultDiv.innerHTML = `<p class="error">Vale "${storedVoucher.id}" solo puede ser canjeado en la estación "${storedVoucher.station}". Esta es la estación "${currentStation}".</p>`;
-            console.warn('Voucher station mismatch:', storedVoucher.id, 'Expected:', storedVoucher.station, 'Current:', currentStation);
-            return;
-        }
-
-        // Marcar como canjeado
-        const { error: updateError } = await supabase
-            .from('vouchers')
-            .update({ redeemed: true })
-            .eq('id', storedVoucher.id);
-
-        if (updateError) {
-            resultDiv.innerHTML = `<p class="error">Error al actualizar el vale en la base de datos.</p>`;
-            console.error('Error updating voucher:', updateError);
-            return;
-        }
-
-        resultDiv.innerHTML = `<p class="success">¡Vale "${storedVoucher.id}" canjeado exitosamente en la estación "${currentStation}"!</p>`;
-        console.log('Voucher redeemed successfully:', storedVoucher.id);
+        resultDiv.innerHTML = `<p class="success">¡Vale "${voucherData.id}" canjeado exitosamente en la estación "${currentStation}"!</p>`;
+        console.log('Voucher redeemed successfully:', voucherData.id);
     }
 
     // Iniciar el escáner si ya hay una estación configurada
