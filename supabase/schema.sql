@@ -18,6 +18,11 @@ create table if not exists public.vouchers (
     redeemed_at timestamptz
 );
 
+-- Compatibilidad con tablas de vales creadas antes de este esquema.
+alter table public.vouchers add column if not exists redeemed boolean not null default false;
+alter table public.vouchers add column if not exists created_at timestamptz not null default now();
+alter table public.vouchers add column if not exists redeemed_at timestamptz;
+
 -- Crea automáticamente un perfil pendiente cuando se registra un usuario.
 create or replace function public.handle_new_user()
 returns trigger
@@ -47,6 +52,7 @@ alter table public.vouchers enable row level security;
 
 revoke all on table public.profiles from anon, authenticated;
 revoke all on table public.vouchers from anon, authenticated;
+grant usage on schema public to authenticated;
 grant select on table public.profiles to authenticated;
 grant select, insert on table public.vouchers to authenticated;
 
@@ -61,12 +67,25 @@ drop policy if exists "admins_read_vouchers" on public.vouchers;
 drop policy if exists "helpers_read_station_vouchers" on public.vouchers;
 drop policy if exists "admins_insert_vouchers" on public.vouchers;
 
+create or replace function public.is_admin()
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+    select exists (
+        select 1 from public.profiles
+        where profiles.id = auth.uid() and profiles.role = 'admin'
+    );
+$$;
+
+revoke all on function public.is_admin() from public, anon;
+grant execute on function public.is_admin() to authenticated;
+
 create policy "admins_read_vouchers"
 on public.vouchers for select to authenticated
-using (exists (
-    select 1 from public.profiles
-    where id = (select auth.uid()) and role = 'admin'
-));
+using ((select public.is_admin()));
 
 create policy "helpers_read_station_vouchers"
 on public.vouchers for select to authenticated
@@ -80,10 +99,7 @@ on public.vouchers for insert to authenticated
 with check (
     redeemed = false
     and redeemed_at is null
-    and exists (
-        select 1 from public.profiles
-        where id = (select auth.uid()) and role = 'admin'
-    )
+    and (select public.is_admin())
 );
 
 -- Valida y canjea con bloqueo de fila para impedir dobles canjes.

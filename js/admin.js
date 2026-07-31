@@ -263,7 +263,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                     loadVouchers();
                 } catch (err) {
                     console.error('No se pudieron guardar los vales en Supabase.', err);
-                    alert(`No se guardaron los vales: ${err.message || 'error de conexión con Supabase'}.`);
+                    const permissionHint = err.code === '42501'
+                        ? '\n\nSupabase rechazó el permiso. Ejecuta supabase/fix-voucher-permissions.sql y confirma que tu perfil tenga role = admin.'
+                        : '';
+                    alert(`No se guardaron los vales.\n\n${err.message || 'Error de conexión con Supabase'}${err.details ? `\n${err.details}` : ''}${permissionHint}`);
                 }
             } else {
                 alert('No se guardaron los vales porque Supabase no está disponible.');
