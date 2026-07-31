@@ -4,6 +4,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const videoElement = document.getElementById('reader');
     const setStationBtn = document.getElementById('setStationBtn');
     let currentStation = localStorage.getItem('scannerStationId') || ''; // Cargar estación guardada
+    let isProcessing = false;
+    let restartTimer = null;
 
     currentStationIdInput.value = currentStation;
 
@@ -11,6 +13,7 @@ document.addEventListener('DOMContentLoaded', () => {
         currentStation = currentStationIdInput.value.trim();
         if (currentStation) {
             stopScanner(); // Stop current scanner before restarting with new station
+            isProcessing = false;
             localStorage.setItem('scannerStationId', currentStation);
             alert(`Estación del escáner establecida a: ${currentStation}`);
             startScanner(); // Reiniciar escáner con la nueva estación
@@ -22,12 +25,24 @@ document.addEventListener('DOMContentLoaded', () => {
     // Instancia del nuevo escáner
     const qrScanner = new QrScanner(
         videoElement,
-        result => {
+        async result => {
+            if (isProcessing) return;
+            isProcessing = true;
             console.log(`QR Code detectado: ${result.data}`);
-            stopScanner(); // Stop scanner immediately after a scan
-            processScannedVoucher(result.data);
+            stopScanner();
+
+            try {
+                await processScannedVoucher(result.data);
+            } finally {
+                restartTimer = window.setTimeout(() => {
+                    isProcessing = false;
+                    startScanner();
+                }, 4000);
+            }
         },
         {
+            preferredCamera: 'environment',
+            maxScansPerSecond: 5,
             highlightScanRegion: true,
             highlightCodeOutline: true,
             // Consider adding a throttle or debounce if rapid scans are an issue
@@ -36,6 +51,10 @@ document.addEventListener('DOMContentLoaded', () => {
     );
 
     function stopScanner() {
+        if (restartTimer) {
+            window.clearTimeout(restartTimer);
+            restartTimer = null;
+        }
         qrScanner.stop();
         console.log('Escáner detenido.');
     }
@@ -46,10 +65,11 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        resultDiv.innerHTML = '<p>Escaneando...</p>'; // Clear previous result and show scanning status
+        resultDiv.innerHTML = '<p class="scanning">Cámara activa. Acerque un código QR...</p>';
         // Iniciar el nuevo escáner
         qrScanner.start().catch(err => {
-            resultDiv.innerHTML = `<p class="error">Error al iniciar el escáner: ${err}. Asegúrate de que la cámara esté disponible y los permisos concedidos.</p>`;
+            isProcessing = false;
+            resultDiv.innerHTML = `<p class="error">No se pudo iniciar la cámara. Permite el acceso a la cámara y abre esta página mediante HTTPS o localhost.<br><small>${err.message || err}</small></p>`;
             console.error('Error starting QR scanner:', err);
         });
     }
@@ -81,13 +101,19 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         // Validar y canjear en una sola operación atómica en PostgreSQL.
-        const { data: redemption, error } = await client.rpc('redeem_voucher', {
-            voucher_id: voucherData.id,
-            scanner_station: currentStation
-        });
+        let redemption;
+        let error;
+        try {
+            ({ data: redemption, error } = await client.rpc('redeem_voucher', {
+                voucher_id: voucherData.id,
+                scanner_station: currentStation
+            }));
+        } catch (requestError) {
+            error = requestError;
+        }
 
         if (error) {
-            resultDiv.innerHTML = `<p class="error">Error al consultar la base de datos.</p>`;
+            resultDiv.innerHTML = `<p class="error">No se pudo verificar el código QR en Supabase. Revisa tu conexión.</p>`;
             console.error('Error fetching voucher:', error);
             return;
         }
@@ -95,16 +121,17 @@ document.addEventListener('DOMContentLoaded', () => {
         const result = Array.isArray(redemption) ? redemption[0] : redemption;
         if (!result || !result.success) {
             const messages = {
-                not_found: 'El vale no existe.',
-                expired: 'El vale ha expirado.',
-                already_redeemed: 'El vale ya fue canjeado.',
-                wrong_station: 'El vale pertenece a otra estación.'
+                not_found: 'CÓDIGO QR NO VÁLIDO: el vale no existe.',
+                expired: 'CÓDIGO QR VENCIDO: el vale ya expiró.',
+                already_redeemed: `CÓDIGO QR YA UTILIZADO: el vale "${voucherData.id}" ya fue canjeado.`,
+                wrong_station: 'CÓDIGO QR DE OTRA ESTACIÓN: no puede canjearse aquí.'
             };
-            resultDiv.innerHTML = `<p class="error">${messages[result?.status] || 'No se pudo canjear el vale.'}</p>`;
+            const messageClass = result?.status === 'already_redeemed' ? 'warning' : 'error';
+            resultDiv.innerHTML = `<p class="${messageClass}">${messages[result?.status] || 'No se pudo canjear el vale.'}<br><small>El escáner se reactivará en 4 segundos.</small></p>`;
             return;
         }
 
-        resultDiv.innerHTML = `<p class="success">¡Vale "${voucherData.id}" canjeado exitosamente en la estación "${currentStation}"!</p>`;
+        resultDiv.innerHTML = `<p class="success">CÓDIGO QR VÁLIDO<br>Vale "${voucherData.id}" canjeado correctamente en "${currentStation}".<br><small>El escáner se reactivará en 4 segundos.</small></p>`;
         console.log('Voucher redeemed successfully:', voucherData.id);
     }
 

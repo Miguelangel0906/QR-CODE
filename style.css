@@ -146,6 +146,14 @@ button:hover {
     margin: 0;
 }
 
+.scan-result .scanning {
+    background-color: #e7f1ff;
+    color: #084298;
+    border: 1px solid #b6d4fe;
+    padding: 10px;
+    border-radius: 4px;
+}
+
 .scan-result .error {
     background-color: #f8d7da;
     color: #721c24;
