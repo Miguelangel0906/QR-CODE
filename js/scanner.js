@@ -1,9 +1,12 @@
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
+    const auth = await window.authReady;
+    if (!auth) return;
+
     const resultDiv = document.getElementById('result');
     const currentStationIdInput = document.getElementById('currentStationId');
     const videoElement = document.getElementById('reader');
     const setStationBtn = document.getElementById('setStationBtn');
-    let currentStation = localStorage.getItem('scannerStationId') || ''; // Cargar estación guardada
+    let currentStation = auth.profile.station || '';
     let isProcessing = false;
     let restartTimer = null;
 
@@ -124,7 +127,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 not_found: 'CÓDIGO QR NO VÁLIDO: el vale no existe.',
                 expired: 'CÓDIGO QR VENCIDO: el vale ya expiró.',
                 already_redeemed: `CÓDIGO QR YA UTILIZADO: el vale "${voucherData.id}" ya fue canjeado.`,
-                wrong_station: 'CÓDIGO QR DE OTRA ESTACIÓN: no puede canjearse aquí.'
+                wrong_station: 'CÓDIGO QR DE OTRA ESTACIÓN: no puede canjearse aquí.',
+                unauthorized: 'Tu usuario no tiene permiso para canjear vales.',
+                unauthorized_station: 'Tu usuario no está autorizado para operar esta estación.'
             };
             const messageClass = result?.status === 'already_redeemed' ? 'warning' : 'error';
             resultDiv.innerHTML = `<p class="${messageClass}">${messages[result?.status] || 'No se pudo canjear el vale.'}<br><small>El escáner se reactivará en 4 segundos.</small></p>`;

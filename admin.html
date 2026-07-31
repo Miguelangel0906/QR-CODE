@@ -1,65 +1,77 @@
 <!DOCTYPE html>
 <html lang="es">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin Vales de Gas LP</title>
+    <meta name="theme-color" content="#13223b">
+    <title>Administración de Vales | Gas Express Nieto</title>
     <link rel="stylesheet" href="style.css">
 </head>
-
-<body>
-    <div class="container">
-        <a href="index.html" class="back-link" style="margin-bottom: 20px;">&larr; Volver al Inicio</a>
-        <h1>Administración de Vales QR</h1>
-
-        <div class="section">
-            <h2>Generación Masiva de Vales</h2>
-            <div class="form-group">
-                <label for="bulkStationId">Estación de Compra (para todo el lote):</label>
-                <input type="text" id="bulkStationId" placeholder="Ej: EstacionA">
-            </div>
-            <div class="form-group">
-                <label for="voucherValidity">Vigencia del Canje (para todo el lote):</label>
-                <input type="date" id="voucherValidity">
-            </div>
-            <div class="form-group">
-                <label for="voucherPrefix">Prefijo para ID de Vales:</label>
-                <input type="text" id="voucherPrefix" placeholder="Ej: TICKET-">
-            </div>
-            <div class="form-group-inline">
-                <div class="form-group">
-                    <label for="startNumber">Número Inicial:</label>
-                    <input type="number" id="startNumber" value="1" min="1">
+<body data-required-role="admin">
+    <main class="container">
+        <div class="app-card">
+            <header class="topbar">
+                <div class="brand">
+                    <span class="brand-mark">N</span>
+                    <span class="brand-copy"><strong>GAS EXPRESS NIETO</strong><span>Administración de vales</span></span>
                 </div>
-                <div class="form-group">
-                    <label for="quantity">Cantidad a Generar:</label>
-                    <input type="number" id="quantity" value="10" min="1">
+                <div class="user-menu">
+                    <span class="user-badge"><strong data-user-role>Administrador</strong><small data-user-email></small></span>
+                    <button id="logoutBtn" class="logout-button" type="button">Salir</button>
                 </div>
+            </header>
+            <div class="page-content">
+                <div class="page-heading">
+                    <span class="eyebrow">Panel administrativo</span>
+                    <h1>Generación de vales QR</h1>
+                    <p class="subtitle">Configura los datos del lote. Cada folio se guardará en Supabase y se generará con original y copia.</p>
+                </div>
+                <section class="section">
+                    <div class="section-header"><span class="section-icon">＋</span><div><h2>Nuevo lote de vales</h2><p>Completa todos los campos antes de generar.</p></div></div>
+                    <div class="form-grid">
+                        <div class="form-group"><label for="bulkStationId">Estación de canje</label><input type="text" id="bulkStationId" placeholder="Ej. EL SOL" autocomplete="off"></div>
+                        <div class="form-group"><label for="voucherValidity">Fecha límite de canje</label><input type="date" id="voucherValidity"></div>
+                    </div>
+                    <div class="form-group"><label for="voucherPrefix">Prefijo de folio</label><input type="text" id="voucherPrefix" placeholder="Ej. TICKET-" autocomplete="off"></div>
+                    <div class="form-group-inline">
+                        <div class="form-group"><label for="startNumber">Número inicial</label><input type="number" id="startNumber" value="1" min="1"></div>
+                        <div class="form-group"><label for="quantity">Cantidad de vales</label><input type="number" id="quantity" value="10" min="1"></div>
+                    </div>
+                    <button id="generateBulkBtn" class="button-wide">Generar y guardar vales →</button>
+                </section>
+                <section id="bulkContainer" class="bulk-container" style="display: none;">
+                    <div class="bulk-header"><div><span class="eyebrow">Vista previa</span><h2>Vales generados</h2></div><button id="downloadBtn" class="button-success">Descargar / imprimir</button></div>
+                    <div id="bulkQrCodeContainer" class="grid-container"></div>
+                </section>
+                <section class="section">
+                    <div class="records-heading">
+                        <div class="section-header"><span class="section-icon">✓</span><div><h2>Vales registrados</h2><p>Información consultada directamente desde Supabase.</p></div></div>
+                        <button id="exportVouchersBtn" class="button-success" type="button">Exportar CSV</button>
+                    </div>
+                    <div class="record-stats">
+                        <div><span>Total</span><strong id="totalVouchers">0</strong></div>
+                        <div><span>Disponibles</span><strong id="availableVouchers">0</strong></div>
+                        <div><span>Canjeados</span><strong id="redeemedVouchers">0</strong></div>
+                    </div>
+                    <div class="record-filters">
+                        <div class="form-group"><label for="voucherSearch">Buscar vale</label><input type="search" id="voucherSearch" placeholder="Folio o estación"></div>
+                        <div class="form-group"><label for="voucherStatusFilter">Estado</label><select id="voucherStatusFilter"><option value="all">Todos</option><option value="available">Disponibles</option><option value="redeemed">Canjeados</option><option value="expired">Vencidos</option></select></div>
+                    </div>
+                    <div class="records-table-wrap">
+                        <table class="records-table">
+                            <thead><tr><th>Folio</th><th>Estación</th><th>Vigencia</th><th>Estado</th><th>Creado</th><th>Canjeado</th></tr></thead>
+                            <tbody id="generatedVouchers"></tbody>
+                        </table>
+                        <p id="emptyVouchers" class="empty-records" hidden>No se encontraron vales con estos filtros.</p>
+                    </div>
+                </section>
             </div>
-            <button id="generateBulkBtn">Generar Vales Masivamente</button>
         </div>
-
-        <div id="bulkContainer" class="bulk-container" style="display: none;">
-            <div class="bulk-header">
-                <h2>Vales Generados</h2>
-                <button id="downloadBtn">Descargar / Imprimir Vales</button>
-            </div>
-            <div id="bulkQrCodeContainer" class="grid-container">
-                <!-- Los QRs generados masivamente se insertarán aquí -->
-            </div>
-        </div>
-
-        <div class="section">
-            <h2>Vales en el Sistema (Depuración)</h2>
-            <ul id="generatedVouchers"></ul>
-        </div>
-    </div>
-
+    </main>
     <script src="js/qrcode.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="js/supabase-client.js"></script>
+    <script src="js/auth-guard.js"></script>
     <script src="js/admin.js"></script>
 </body>
-
 </html>

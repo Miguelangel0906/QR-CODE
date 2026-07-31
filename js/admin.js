@@ -1,4 +1,7 @@
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
+    const auth = await window.authReady;
+    if (!auth) return;
+
     // Elementos para generación masiva
     const bulkStationIdInput = document.getElementById('bulkStationId');
     const voucherValidityInput = document.getElementById('voucherValidity');
@@ -10,44 +13,120 @@ document.addEventListener('DOMContentLoaded', () => {
     const bulkQrCodeContainer = document.getElementById('bulkQrCodeContainer');
     const downloadBtn = document.getElementById('downloadBtn');
 
-    // Elementos de depuración
+    // Registro y exportación de vales
     const generatedVouchersList = document.getElementById('generatedVouchers');
+    const voucherSearchInput = document.getElementById('voucherSearch');
+    const voucherStatusFilter = document.getElementById('voucherStatusFilter');
+    const exportVouchersBtn = document.getElementById('exportVouchersBtn');
+    const emptyVouchers = document.getElementById('emptyVouchers');
+    const totalVouchers = document.getElementById('totalVouchers');
+    const availableVouchers = document.getElementById('availableVouchers');
+    const redeemedVouchers = document.getElementById('redeemedVouchers');
+    let allVouchers = [];
 
     const getSupabaseClient = () => {
         return window.supabaseClient || null;
     };
 
-    const renderVoucherList = (vouchers = []) => {
+    const getVoucherStatus = voucher => {
+        if (voucher.redeemed) return 'redeemed';
+        if (voucher.validity && voucher.validity < new Date().toISOString().slice(0, 10)) return 'expired';
+        return 'available';
+    };
+
+    const formatDate = value => {
+        if (!value) return '—';
+        const isDateOnly = /^\d{4}-\d{2}-\d{2}$/.test(value);
+        const date = new Date(isDateOnly ? `${value}T12:00:00` : value);
+        return Number.isNaN(date.getTime()) ? value : new Intl.DateTimeFormat('es-MX', {
+            dateStyle: 'medium',
+            timeStyle: isDateOnly ? undefined : 'short'
+        }).format(date);
+    };
+
+    const getFilteredVouchers = () => {
+        const search = voucherSearchInput.value.trim().toLowerCase();
+        const status = voucherStatusFilter.value;
+        return allVouchers.filter(voucher => {
+            const matchesText = !search
+                || voucher.id.toLowerCase().includes(search)
+                || (voucher.station || '').toLowerCase().includes(search);
+            const matchesStatus = status === 'all' || getVoucherStatus(voucher) === status;
+            return matchesText && matchesStatus;
+        });
+    };
+
+    const renderVoucherList = () => {
         if (!generatedVouchersList) return;
         generatedVouchersList.innerHTML = '';
+        const vouchers = getFilteredVouchers();
+        const labels = { available: 'Disponible', redeemed: 'Canjeado', expired: 'Vencido' };
+
         vouchers.forEach(voucher => {
-            const li = document.createElement('li');
-            li.textContent = `ID: ${voucher.id}, Estación: ${voucher.station || 'N/A'}, Vigencia: ${voucher.validity || 'N/A'}, Canjeado: ${voucher.redeemed ? 'Sí' : 'No'}`;
-            generatedVouchersList.appendChild(li);
+            const status = getVoucherStatus(voucher);
+            const row = document.createElement('tr');
+            const values = [
+                voucher.id,
+                voucher.station || '—',
+                formatDate(voucher.validity),
+                labels[status],
+                formatDate(voucher.created_at),
+                formatDate(voucher.redeemed_at)
+            ];
+            values.forEach((value, index) => {
+                const cell = document.createElement('td');
+                if (index === 3) {
+                    const badge = document.createElement('span');
+                    badge.className = `status-badge status-${status}`;
+                    badge.textContent = value;
+                    cell.appendChild(badge);
+                } else {
+                    cell.textContent = value;
+                }
+                row.appendChild(cell);
+            });
+            generatedVouchersList.appendChild(row);
         });
+
+        emptyVouchers.hidden = vouchers.length > 0;
+        totalVouchers.textContent = allVouchers.length;
+        availableVouchers.textContent = allVouchers.filter(v => getVoucherStatus(v) === 'available').length;
+        redeemedVouchers.textContent = allVouchers.filter(v => v.redeemed).length;
     };
 
     async function loadVouchers() {
         const client = getSupabaseClient();
         if (!client) {
-            renderVoucherList([]);
+            allVouchers = [];
+            renderVoucherList();
             return [];
         }
 
         try {
-            const { data: vouchers, error } = await client
-                .from('vouchers')
-                .select('*')
-                .order('created_at', { ascending: false });
+            const pageSize = 1000;
+            const list = [];
+            let page = 0;
+            let rows = [];
 
-            if (error) throw error;
+            do {
+                const { data, error } = await client
+                    .from('vouchers')
+                    .select('*')
+                    .order('created_at', { ascending: false })
+                    .range(page * pageSize, ((page + 1) * pageSize) - 1);
+                if (error) throw error;
+                rows = Array.isArray(data) ? data : [];
+                list.push(...rows);
+                page += 1;
+            } while (rows.length === pageSize);
 
-            const list = Array.isArray(vouchers) ? vouchers : [];
-            renderVoucherList(list);
-            return list;
+            allVouchers = list;
+            renderVoucherList();
+            return allVouchers;
         } catch (err) {
             console.error('No se pudieron cargar los vales desde Supabase.', err);
-            renderVoucherList([]);
+            allVouchers = [];
+            renderVoucherList();
             return [];
         }
     }
@@ -270,6 +349,44 @@ document.addEventListener('DOMContentLoaded', () => {
             </html>
         `);
         printWindow.document.close();
+    });
+
+    voucherSearchInput.addEventListener('input', renderVoucherList);
+    voucherStatusFilter.addEventListener('change', renderVoucherList);
+
+    exportVouchersBtn.addEventListener('click', () => {
+        if (allVouchers.length === 0) {
+            alert('No hay vales registrados para exportar.');
+            return;
+        }
+
+        const safeCell = value => {
+            let text = value === null || value === undefined ? '' : String(value);
+            if (/^[=+\-@]/.test(text)) text = `'${text}`;
+            return `"${text.replace(/"/g, '""')}"`;
+        };
+        const headers = ['Folio', 'Estación', 'Vigencia', 'Estado', 'Fecha de creación', 'Fecha de canje'];
+        const labels = { available: 'Disponible', redeemed: 'Canjeado', expired: 'Vencido' };
+        const rows = allVouchers.map(voucher => [
+            voucher.id,
+            voucher.station,
+            voucher.validity,
+            labels[getVoucherStatus(voucher)],
+            voucher.created_at,
+            voucher.redeemed_at || ''
+        ]);
+        const csv = [headers, ...rows]
+            .map(row => row.map(safeCell).join(','))
+            .join('\r\n');
+        const blob = new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `vales-${new Date().toISOString().slice(0, 10)}.csv`;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        URL.revokeObjectURL(url);
     });
 
     // Cargar vales al iniciar la página

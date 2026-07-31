@@ -3,29 +3,47 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Escáner de Vales de Gas LP</title>
+    <meta name="theme-color" content="#13223b">
+    <title>Escáner de Vales | Gas Express Nieto</title>
     <link rel="stylesheet" href="style.css">
 </head>
-<body>
-    <div class="container">
-        <h1>Escáner de Vales QR</h1>
-        <div class="form-group">
-            <label for="currentStationId">Estación Actual del Escáner:</label>
-            <input type="text" id="currentStationId" placeholder="Ej: EstacionA">
-            <button id="setStationBtn">Establecer Estación</button>
+<body data-required-role="ayudante">
+    <main class="container scanner-shell">
+        <div class="app-card">
+            <header class="topbar">
+                <div class="brand">
+                    <span class="brand-mark">N</span>
+                    <span class="brand-copy"><strong>GAS EXPRESS NIETO</strong><span>Validación en punto de canje</span></span>
+                </div>
+                <div class="user-menu">
+                    <span class="user-badge"><strong data-user-role>Ayudante</strong><small data-user-email></small></span>
+                    <button id="logoutBtn" class="logout-button" type="button">Salir</button>
+                </div>
+            </header>
+            <div class="page-content">
+                <div class="page-heading">
+                    <span class="eyebrow">Validación en tiempo real</span>
+                    <h1>Escáner de vales</h1>
+                    <p class="subtitle">Selecciona la estación y coloca el código QR dentro del área de la cámara.</p>
+                </div>
+                <section class="section">
+                    <div class="station-panel">
+                        <div class="form-group"><label for="currentStationId">Estación actual</label><input type="text" id="currentStationId" placeholder="Ej. EL SOL" autocomplete="off"></div>
+                        <button id="setStationBtn">Iniciar escáner</button>
+                    </div>
+                    <div class="camera-frame">
+                        <video id="reader" playsinline muted></video>
+                        <span class="camera-corners" aria-hidden="true"></span>
+                    </div>
+                    <div id="result" class="scan-result" aria-live="polite"><p class="scanning">Configura la estación para comenzar.</p></div>
+                </section>
+            </div>
         </div>
-
-        <!-- qr-scanner necesita un elemento <video> directamente -->
-        <video id="reader" style="width: 100%; max-width: 500px; border: 1px solid #ddd; border-radius: 8px;"></video>
-        <div id="result" class="scan-result">
-            <p>Esperando escaneo...</p>
-        </div>
-        <a href="index.html" class="back-link">Volver al Inicio</a>
-    </div>
-
+    </main>
     <script src="https://cdn.jsdelivr.net/npm/qr-scanner@1.4.2/qr-scanner.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="js/supabase-client.js"></script>
+    <script src="js/auth-guard.js"></script>
     <script src="js/scanner.js"></script>
 </body>
 </html>

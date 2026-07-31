@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#13223b">
+    <title>Iniciar sesión | Gas Express Nieto</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <main class="login-page">
+        <section class="app-card login-card">
+            <div class="login-brand">
+                <div class="brand">
+                    <span class="brand-mark">N</span>
+                    <span class="brand-copy"><strong>GAS EXPRESS NIETO</strong><span>Sistema seguro de vales</span></span>
+                </div>
+                <span class="eyebrow">Acceso autorizado</span>
+                <h1>Bienvenido</h1>
+                <p class="subtitle">Ingresa con el correo registrado en Supabase. Te enviaremos automáticamente a tu área de trabajo.</p>
+            </div>
+            <form id="loginForm" class="login-form">
+                <div class="form-group">
+                    <label for="email">Correo electrónico</label>
+                    <input type="email" id="email" autocomplete="email" placeholder="nombre@empresa.com" required>
+                </div>
+                <div class="form-group">
+                    <label for="password">Contraseña</label>
+                    <input type="password" id="password" autocomplete="current-password" placeholder="Tu contraseña" minlength="6" required>
+                </div>
+                <div id="loginMessage" class="login-message" role="alert" hidden></div>
+                <button id="loginBtn" class="button-wide" type="submit">Iniciar sesión</button>
+                <p class="login-help">Si no tienes acceso o tu rol es incorrecto, solicita apoyo al administrador del sistema.</p>
+            </form>
+        </section>
+    </main>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="js/supabase-client.js"></script>
+    <script src="js/login.js"></script>
+</body>
+</html>
