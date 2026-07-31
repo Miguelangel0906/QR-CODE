@@ -10,6 +10,7 @@ document.addEventListener('DOMContentLoaded', () => {
     setStationBtn.addEventListener('click', () => {
         currentStation = currentStationIdInput.value.trim();
         if (currentStation) {
+            stopScanner(); // Stop current scanner before restarting with new station
             localStorage.setItem('scannerStationId', currentStation);
             alert(`Estación del escáner establecida a: ${currentStation}`);
             startScanner(); // Reiniciar escáner con la nueva estación
@@ -18,22 +19,26 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // Asegurar la ruta al worker de la librería qr-scanner (necesario cuando se carga desde CDN)
-    QrScanner.WORKER_PATH = 'https://cdn.jsdelivr.net/npm/qr-scanner@1.4.2/qr-scanner-worker.min.js';
-
     // Instancia del nuevo escáner
     const qrScanner = new QrScanner(
         videoElement,
         result => {
-            // 'result' es el texto decodificado del QR (no tiene propiedad .data)
-            console.log(`QR Code detectado: ${result}`);
-            processScannedVoucher(result);
+            console.log(`QR Code detectado: ${result.data}`);
+            stopScanner(); // Stop scanner immediately after a scan
+            processScannedVoucher(result.data);
         },
         {
             highlightScanRegion: true,
             highlightCodeOutline: true,
+            // Consider adding a throttle or debounce if rapid scans are an issue
+            // delay: 500, // Example: wait 500ms before next scan attempt
         }
     );
+
+    function stopScanner() {
+        qrScanner.stop();
+        console.log('Escáner detenido.');
+    }
 
     function startScanner() {
         if (!currentStation) {
@@ -41,9 +46,11 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
+        resultDiv.innerHTML = '<p>Escaneando...</p>'; // Clear previous result and show scanning status
         // Iniciar el nuevo escáner
         qrScanner.start().catch(err => {
-            resultDiv.innerHTML = `<p class="error">Error al iniciar el escáner: ${err}</p>`;
+            resultDiv.innerHTML = `<p class="error">Error al iniciar el escáner: ${err}. Asegúrate de que la cámara esté disponible y los permisos concedidos.</p>`;
+            console.error('Error starting QR scanner:', err);
         });
     }
 
@@ -52,12 +59,14 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             voucherData = JSON.parse(qrContent);
         } catch (e) {
-            resultDiv.innerHTML = '<p class="error">QR inválido: No es un formato de vale reconocido.</p>';
+            resultDiv.innerHTML = '<p class="error">QR inválido: No es un formato de vale reconocido. Asegúrate de escanear un QR generado por esta aplicación.</p>';
+            console.error('JSON parsing error for QR content:', qrContent, e);
             return;
         }
 
         if (!voucherData || !voucherData.id || !voucherData.station) {
-            resultDiv.innerHTML = '<p class="error">QR inválido: Faltan datos del vale (ID o Estación).</p>';
+            resultDiv.innerHTML = '<p class="error">QR inválido: Faltan datos del vale (ID o Estación). El QR debe contener `{ "id": "...", "station": "..." }`.</p>';
+            console.error('Missing ID or Station in QR data:', voucherData);
             return;
         }
 
@@ -65,19 +74,34 @@ document.addEventListener('DOMContentLoaded', () => {
         const voucherIndex = vouchers.findIndex(v => v.id === voucherData.id);
 
         if (voucherIndex === -1) {
-            resultDiv.innerHTML = `<p class="error">Vale con ID "${voucherData.id}" no encontrado.</p>`;
+            resultDiv.innerHTML = `<p class="error">Vale con ID "${voucherData.id}" no encontrado. Asegúrate de que el vale haya sido generado en la sección de administración.</p>`;
+            console.warn('Voucher not found:', voucherData.id);
             return;
         }
 
         const storedVoucher = vouchers[voucherIndex];
 
+        // Verificar Vigencia
+        if (storedVoucher.validity) {
+            const today = new Date();
+            const validityDate = new Date(storedVoucher.validity + 'T23:59:59'); // Considerar el día completo
+            today.setHours(0, 0, 0, 0); // Ignorar la hora para la comparación
+            if (today > validityDate) {
+                resultDiv.innerHTML = `<p class="error">Vale "${storedVoucher.id}" ha expirado. La fecha de vigencia era ${storedVoucher.validity}.</p>`;
+                console.warn('Voucher expired:', storedVoucher.id, 'Validity:', storedVoucher.validity);
+                return;
+            }
+        }
+
         if (storedVoucher.redeemed) {
             resultDiv.innerHTML = `<p class="warning">Vale "${storedVoucher.id}" ya ha sido canjeado.</p>`;
+            console.warn('Voucher already redeemed:', storedVoucher.id);
             return;
         }
 
         if (storedVoucher.station !== currentStation) {
             resultDiv.innerHTML = `<p class="error">Vale "${storedVoucher.id}" solo puede ser canjeado en la estación "${storedVoucher.station}". Esta es la estación "${currentStation}".</p>`;
+            console.warn('Voucher station mismatch:', storedVoucher.id, 'Expected:', storedVoucher.station, 'Current:', currentStation);
             return;
         }
 
@@ -85,6 +109,7 @@ document.addEventListener('DOMContentLoaded', () => {
         storedVoucher.redeemed = true;
         localStorage.setItem('gasVouchers', JSON.stringify(vouchers));
         resultDiv.innerHTML = `<p class="success">¡Vale "${storedVoucher.id}" canjeado exitosamente en la estación "${currentStation}"!</p>`;
+        console.log('Voucher redeemed successfully:', storedVoucher.id);
     }
 
     // Iniciar el escáner si ya hay una estación configurada
@@ -93,4 +118,10 @@ document.addEventListener('DOMContentLoaded', () => {
     } else {
         resultDiv.innerHTML = '<p>Por favor, establece la estación actual del escáner para comenzar.</p>';
     }
+
+    // Add an event listener to stop the scanner when the page is unloaded
+    window.addEventListener('beforeunload', () => {
+        qrScanner.stop();
+        console.log('Scanner stopped due to page unload.');
+    });
 });

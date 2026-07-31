@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vale de Gas Amigo Express</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            font-family: Arial, Helvetica, sans-serif;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: #f4f4f4;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        /* Contenedor principal para los vales */
+        .page {
+            display: flex;
+            gap: 20px;
+            background: #fff;
+            padding: 20px;
+        }
+
+        /* Tarjeta individual del vale */
+        .voucher {
+            width: 480px;
+            border: 1px dashed #ccc;
+            padding: 25px 30px;
+            background: #fff;
+            position: relative;
+            color: #000;
+        }
+
+        /* Encabezado */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 10px;
+        }
+
+        /* Logo simulado */
+        .logo-container {
+            display: flex;
+            align-items: center;
+        }
+
+        .logo-icon {
+            color: #c8232a;
+            font-size: 38px;
+            font-weight: bold;
+            line-height: 0.8;
+            margin-right: 5px;
+            font-family: 'Arial Black', sans-serif;
+        }
+
+        .logo-text {
+            color: #1a2b4c;
+            font-weight: 900;
+            font-size: 14px;
+            line-height: 1.1;
+            text-transform: uppercase;
+        }
+
+        .logo-text span {
+            color: #c8232a;
+            display: block;
+        }
+
+        /* Folio */
+        .folio {
+            font-size: 14px;
+            font-weight: bold;
+            color: #c8232a;
+        }
+
+        .folio span {
+            font-size: 16px;
+            font-weight: normal;
+            margin-left: 5px;
+        }
+
+        /* Información de la empresa */
+        .company-info {
+            text-align: right;
+            margin-top: -15px;
+            margin-bottom: 15px;
+        }
+
+        .address {
+            font-size: 10px;
+            text-align: left;
+            margin-top: 5px;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .company-name {
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        .voucher-title {
+            font-size: 13px;
+            font-weight: 900;
+            margin-top: 2px;
+        }
+
+        .station-info {
+            font-size: 11px;
+            font-weight: bold;
+            margin-top: 2px;
+        }
+
+        .donated-tag {
+            font-size: 12px;
+            font-weight: bold;
+            font-style: italic;
+            margin-top: 2px;
+        }
+
+        /* Cuestionario / Recadro de Vigencia */
+        .validity-box {
+            border: 2px solid #000;
+            text-align: center;
+            padding: 15px 5px;
+            margin: 15px 0 25px 0;
+        }
+
+        .validity-title {
+            color: #c8232a;
+            font-size: 11px;
+            font-weight: bold;
+        }
+
+        /* Campos a rellenar */
+        .field-group {
+            margin-bottom: 15px;
+            display: flex;
+            align-items: flex-end;
+            font-size: 11px;
+            font-weight: bold;
+        }
+
+        .field-label {
+            white-space: nowrap;
+            margin-right: 5px;
+        }
+
+        .field-line {
+            flex-grow: 1;
+            border-bottom: 1.5px solid #000;
+        }
+
+        /* Descripción */
+        .description-container {
+            text-align: center;
+            margin: 20px 0;
+        }
+
+        .description-title {
+            font-size: 11px;
+            font-weight: bold;
+            font-style: italic;
+            border-bottom: 1px dotted #000;
+            padding-bottom: 2px;
+        }
+
+        .description-value {
+            font-size: 11px;
+            font-weight: bold;
+            font-style: italic;
+            border-bottom: 1px dotted #000;
+            padding: 3px 0;
+            display: inline-block;
+            width: 80%;
+            margin-top: 2px;
+        }
+
+        /* Firmas y pie de página */
+        .signatures {
+            margin-top: 30px;
+        }
+
+        .signature-field {
+            display: flex;
+            align-items: flex-end;
+            margin-bottom: 20px;
+            font-size: 11px;
+            font-weight: bold;
+        }
+
+        .signature-label {
+            width: 140px;
+        }
+
+        .signature-line {
+            flex-grow: 1;
+            border-bottom: 1.5px solid #000;
+        }
+
+        .watermark {
+            text-align: right;
+            font-size: 9px;
+            font-weight: bold;
+            margin-top: 10px;
+        }
+
+        /* Estilos para impresión */
+        @media print {
+            body {
+                background: none;
+                padding: 0;
+            }
+            .page {
+                gap: 10px;
+            }
+            .voucher {
+                border: 1px solid #ccc;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div class="page">
+    <!-- VALE 1 (ORIGINAL) -->
+    <div class="voucher">
+        <div class="header">
+            <div class="logo-container">
+                <div class="logo-icon">N</div>
+                <div class="logo-text">
+                    GAS<br>EXPRESS<span>NIETO</span>
+                </div>
+            </div>
+            <div class="folio">FOLIO: <span>S 2881</span></div>
+        </div>
+
+        <div class="address">
+            AV REVOLUCIÓN 307-A, EL SOL<br>
+            QUERÉTARO, QRO. CP 76114
+        </div>
+
+        <div class="company-info">
+            <div class="company-name">GAS EXPRESS NIETO S.A. DE C.V.</div>
+            <div class="voucher-title">VALE DE GAS AMIGO EXPRESS</div>
+            <div class="station-info">ESTACIÓN: EL SOL</div>
+            <div class="donated-tag">GAS DONADO</div>
+        </div>
+
+        <div class="validity-box">
+            <div class="validity-title">VIGENCIA DEL CANJE</div>
+        </div>
+
+        <div class="field-group">
+            <span class="field-label">NOMBRE:</span>
+            <div class="field-line"></div>
+        </div>
+
+        <div class="field-group">
+            <span class="field-label">NÚMERO DE TELÉFONO:</span>
+            <div class="field-line"></div>
+        </div>
+
+        <div class="description-container">
+            <div class="description-title">DESCRIPCIÓN</div>
+            <div class="description-value">VALE POR 5 LITROS DE GAS</div>
+        </div>
+
+        <div class="signatures">
+            <div class="signature-field">
+                <span class="signature-label">AUTORIZADO:</span>
+                <div class="signature-line"></div>
+            </div>
+
+            <div class="signature-field">
+                <span class="signature-label">FIRMA DE RECIBIDO:</span>
+                <div class="signature-line"></div>
+            </div>
+        </div>
+
+        <div class="watermark">ORIGINAL</div>
+    </div>
+
+    <!-- VALE 2 (COPIA DUPLICADA) -->
+    <div class="voucher">
+        <div class="header">
+            <div class="logo-container">
+                <div class="logo-icon">N</div>
+                <div class="logo-text">
+                    GAS<br>EXPRESS<span>NIETO</span>
+                </div>
+            </div>
+            <div class="folio">FOLIO: <span>S 2881</span></div>
+        </div>
+
+        <div class="address">
+            AV REVOLUCIÓN 307-A, EL SOL<br>
+            QUERÉTARO, QRO. CP 76114
+        </div>
+
+        <div class="company-info">
+            <div class="company-name">GAS EXPRESS NIETO S.A. DE C.V.</div>
+            <div class="voucher-title">VALE DE GAS AMIGO EXPRESS</div>
+            <div class="station-info">ESTACIÓN: EL SOL</div>
+            <div class="donated-tag">GAS DONADO</div>
+        </div>
+
+        <div class="validity-box">
+            <div class="validity-title">VIGENCIA DEL CANJE</div>
+        </div>
+
+        <div class="field-group">
+            <span class="field-label">NOMBRE:</span>
+            <div class="field-line"></div>
+        </div>
+
+        <div class="field-group">
+            <span class="field-label">NÚMERO DE TELÉFONO:</span>
+            <div class="field-line"></div>
+        </div>
+
+        <div class="description-container">
+            <div class="description-title">DESCRIPCIÓN</div>
+            <div class="description-value">VALE POR 5 LITROS DE GAS</div>
+        </div>
+
+        <div class="signatures">
+            <div class="signature-field">
+                <span class="signature-label">AUTORIZADO:</span>
+                <div class="signature-line"></div>
+            </div>
+
+            <div class="signature-field">
+                <span class="signature-label">FIRMA DE RECIBIDO:</span>
+                <div class="signature-line"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+</body>
+</html>
